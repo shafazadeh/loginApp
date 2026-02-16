@@ -4,7 +4,7 @@
     "apiVersion": "api/v1",
     "swagger": {
       "title": "Auth App API",
-      "description": "توضیحات مربوط به API سیستم احراز هویت",
+      "description": "auth app description",
       "version": "1.0"
     }
   },
