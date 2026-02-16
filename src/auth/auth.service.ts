@@ -1,26 +1,49 @@
-import { Injectable } from '@nestjs/common';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+import { BadRequestException, HttpStatus, Injectable } from '@nestjs/common';
+import { RegisterDto } from './dto/register.dto';
+import { PostgresService } from 'src/database/postgres.service';
+import { SrvError } from 'src/response/dto';
+import { UtilsService } from 'src/utils/utils.service';
 
 @Injectable()
 export class AuthService {
-  create(createAuthDto: CreateAuthDto) {
-    return 'This action adds a new auth';
-  }
+  constructor(
+    private readonly pg: PostgresService,
+    private readonly utils: UtilsService,
+  ) {}
 
-  findAll() {
-    return `This action returns all auth`;
-  }
+  async register(dto: RegisterDto) {
+    if (!this.utils.PasswordHandler.isStrongPassword(dto.password)) {
+      throw new BadRequestException(
+        'Password must be strong (A-z, 0-9, symbol)',
+      );
+    }
 
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
-  }
+    const exists = await this.pg.models.User.findOne({
+      where: { email: dto.email },
+    });
 
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
-  }
+    if (exists) {
+      throw new SrvError(HttpStatus.BAD_REQUEST, 'Email already exists');
+    }
 
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
+    const hashedPassword = await this.utils.PasswordHandler.hashPassword(
+      dto.password,
+    );
+
+    const user = await this.pg.models.User.create({
+      email: dto.email,
+      password: hashedPassword,
+    });
+
+    await this.pg.models.Session.create({
+      userId: user.id,
+      deviceId: dto.deviceId,
+      lastActiveAt: new Date(),
+    });
+
+    return {
+      message: 'User registered successfully',
+      userId: user.id,
+    };
   }
 }

@@ -1,0 +1,22 @@
+{
+  "server": {
+    "apiVersion": "api/v1",
+    "swagger": {
+      "title": "Auth App API",
+      "description": "توضیحات مربوط به API سیستم احراز هویت",
+      "version": "1.0"
+    }
+  },
+  "databases": {
+    "postgres": {
+      "core": {
+        "dialect": "postgres",
+        "host": "localhost",
+        "port": 5433,
+        "username": "authApp",
+        "password": "authApp_pass",
+        "database": "authAppdb"
+      }
+    }
+  }
+}

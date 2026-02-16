@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: authApp-postgres
+    environment:
+      - POSTGRES_USER=authApp
+      - POSTGRES_PASSWORD=authApp_pass
+      - POSTGRES_DB=authAppdb
+    ports:
+      - '5433:5432'
+    volumes:
+      - 'pgdata:/var/lib/postgresql/data'
+    restart: always
+volumes:
+  pgdata:
