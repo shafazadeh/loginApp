@@ -1,5 +1,6 @@
 {
   "server": {
+    "name": "authApp",
     "apiVersion": "api/v1",
     "swagger": {
       "title": "Auth App API",
@@ -17,6 +18,16 @@
         "password": "authApp_pass",
         "database": "authAppdb"
       }
+    }
+  },
+  "jwt": {
+    "access": {
+      "expiresInSeconds": 900,
+      "secret": "abcd1234"
+    },
+    "refresh": {
+      "expiresInSeconds": 123033600,
+      "secret": "abcd1234"
     }
   }
 }

@@ -16,24 +16,23 @@ export class Session extends Model {
     type: DataType.UUID,
     allowNull: false,
   })
-  userId: string;
+  declare userId: string;
 
   @Column({
     allowNull: false,
   })
-  deviceId: string;
+  declare deviceFingerprint: string;
 
-  @Column
-  ip: string;
-
-  @Column
-  userAgent: string;
+  @Column({
+    allowNull: false,
+  })
+  declare userAgent: string;
 
   @Default(true)
   @Column
-  isActive: boolean;
+  declare isActive: boolean;
 
   @Default(DataType.NOW)
   @Column
-  lastActiveAt: Date;
+  declare lastActiveAt: Date;
 }

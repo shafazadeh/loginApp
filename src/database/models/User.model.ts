@@ -22,17 +22,17 @@ export class User extends Model {
     unique: true,
     allowNull: false,
   })
-  email: string;
+  declare email: string;
 
   @Column({
     type: DataType.STRING,
     allowNull: false,
   })
-  password: string;
+  declare password: string;
 
   @Column({
     type: DataType.ENUM('USER', 'ADMIN'),
-    defaultValue: 'USER',
+    defaultValue: UserRole.USER,
   })
-  role: UserRole;
+  declare role: UserRole;
 }
