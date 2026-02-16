@@ -5,6 +5,7 @@ import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import config from 'config';
 import { AuthModule } from 'src/auth/auth.module';
+import { TestGuardModule } from 'src/test-guard/test-guard.module';
 
 interface SwaggerModuleItem {
   path: string;
@@ -22,6 +23,11 @@ export function setupSwagger(app: INestApplication) {
     {
       path: 'auth',
       module: AuthModule,
+      bearer: true,
+    },
+    {
+      path: 'test-guard',
+      module: TestGuardModule,
       bearer: true,
     },
   ];

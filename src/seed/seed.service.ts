@@ -21,7 +21,7 @@ export class SeedService implements OnApplicationBootstrap {
 
   private async seedRootAdmin(): Promise<void> {
     const adminEmail = 'root@snapp.com';
-    const adminPassword = 'Root@1234'; // strong password ✅
+    const adminPassword = 'Root@1234';
 
     const exists = await this.pg.models.User.findOne({
       where: { email: adminEmail },

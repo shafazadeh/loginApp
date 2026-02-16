@@ -1,4 +1,4 @@
-import { HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
 
 export class OutputDto<ContextDto> {
   context: ContextDto;
@@ -8,13 +8,15 @@ export class OutputDto<ContextDto> {
   error?: string | null;
   data?: any;
 }
-export class SrvError extends Error {
-  readonly code: HttpStatus;
-  constructor(
-    status: HttpStatus = HttpStatus.INTERNAL_SERVER_ERROR,
-    error: string,
-  ) {
-    super(error);
-    this.code = status;
+
+export class SrvError extends HttpException {
+  constructor(status: HttpStatus, message: string) {
+    super(
+      {
+        statusCode: status,
+        message,
+      },
+      status,
+    );
   }
 }

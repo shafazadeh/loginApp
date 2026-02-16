@@ -14,7 +14,9 @@ import { ResponseInterceptor } from 'src/response/response.Interceptor';
 import { ApiOperation } from '@nestjs/swagger';
 import { LoginDto } from './dto/login.dto';
 import type { Request } from 'express';
+import { Public } from 'src/common/decorators/public.decorator';
 @Controller('auth')
+@Public()
 @UseFilters(HttpExceptionFilter)
 @UseInterceptors(ResponseInterceptor)
 export class AuthController {

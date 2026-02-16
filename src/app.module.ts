@@ -6,6 +6,7 @@ import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './database/database.module';
 import { UtilsModule } from './utils/utils.module';
 import { SeedModule } from './seed/seed.module';
+import { TestGuardModule } from './test-guard/test-guard.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -16,6 +17,7 @@ import { SeedModule } from './seed/seed.module';
     DatabaseModule,
     UtilsModule,
     SeedModule,
+    TestGuardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

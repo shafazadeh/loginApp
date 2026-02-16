@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { PostgresService } from 'src/database/postgres.service';
@@ -14,22 +12,21 @@ export class AuthService {
     private readonly pg: PostgresService,
     private readonly utils: UtilsService,
   ) {}
+
   async register(dto: RegisterDto, req: Request) {
     const userAgent = (req as any).clientUserAgent;
     const ip = req.ip || req.connection.remoteAddress || 'unknown';
-
-    if (!this.utils.PasswordHandler.isStrongPassword(dto.password)) {
-      throw new SrvError(
-        HttpStatus.BAD_REQUEST,
-        'Password must be strong (A-z, 0-9, symbol)',
-      );
-    }
-
     const exists = await this.pg.models.User.findOne({
       where: { email: dto.email },
     });
     if (exists) {
       throw new SrvError(HttpStatus.BAD_REQUEST, 'Email already exists');
+    }
+    if (!this.utils.PasswordHandler.isStrongPassword(dto.password)) {
+      throw new SrvError(
+        HttpStatus.BAD_REQUEST,
+        'Password must be strong (A-z, 0-9, symbol)',
+      );
     }
 
     const hashedPassword = await this.utils.PasswordHandler.hashPassword(
@@ -40,12 +37,10 @@ export class AuthService {
       password: hashedPassword,
       role: 'USER',
     });
-
     const deviceFingerprint = this.utils.Fingerprint.buildDeviceFingerprint({
       userAgent,
       ip,
     });
-
     const sessionRecord = await this.pg.models.Session.create({
       userId: user.id,
       deviceFingerprint,
@@ -53,7 +48,6 @@ export class AuthService {
       lastActiveAt: new Date(),
       isActive: true,
     });
-
     const userType = 'USER';
     const tokenObj = new this.utils.JwtHandler.AccessToken(
       String(user.id),
@@ -77,6 +71,7 @@ export class AuthService {
       },
     };
   }
+
   async login(dto: LoginDto, req: Request) {
     const user = await this.pg.models.User.findOne({
       where: { email: dto.email },
@@ -84,7 +79,6 @@ export class AuthService {
     if (!user) {
       throw new SrvError(HttpStatus.BAD_REQUEST, 'Invalid credentials');
     }
-
     const valid = await this.utils.PasswordHandler.comparePassword(
       dto.password,
       user.password,
@@ -113,24 +107,15 @@ export class AuthService {
     );
 
     let sessionRecord: any;
+    let message = 'Login successful';
 
     if (existingSession) {
       await existingSession.update({
         lastActiveAt: new Date(),
         userAgent,
       });
-
       sessionRecord = existingSession;
-
-      return {
-        message: 'شما قبلاً وارد شده‌اید و سشن شما تمدید شد.',
-        accessToken: null,
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-        },
-      };
+      message = 'شما قبلاً وارد شده‌اید و سشن شما تمدید شد.';
     } else {
       if (activeSessions.length >= 3) {
         throw new SrvError(
@@ -138,7 +123,6 @@ export class AuthService {
           'شما قبلاً از ۳ دستگاه مختلف وارد شده‌اید. امکان لاگین از دستگاه جدید وجود ندارد.',
         );
       }
-
       sessionRecord = await this.pg.models.Session.create({
         userId: user.id,
         deviceFingerprint,
@@ -146,31 +130,32 @@ export class AuthService {
         lastActiveAt: new Date(),
         isActive: true,
       });
-
-      const userType = user.role;
-      const tokenObj = new this.utils.JwtHandler.AccessToken(
-        String(user.id),
-        userType,
-      );
-      const tokenData = tokenObj.generate(String(sessionRecord.id));
-
-      if (!tokenData) {
-        throw new SrvError(
-          HttpStatus.INTERNAL_SERVER_ERROR,
-          'Failed to generate token',
-        );
-      }
-
-      return {
-        message: 'Login successful',
-        accessToken: tokenData.token,
-        expiresIn: tokenData.ttl,
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-        },
-      };
     }
+
+    const userType = user.role;
+
+    const tokenObj = new this.utils.JwtHandler.AccessToken(
+      String(user.id),
+      userType,
+    );
+    const tokenData = tokenObj.generate(String(sessionRecord.id));
+
+    if (!tokenData) {
+      throw new SrvError(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        'Failed to generate token',
+      );
+    }
+
+    return {
+      message: message,
+      accessToken: tokenData.token,
+      expiresIn: tokenData.ttl,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
+    };
   }
 }
