@@ -1,4 +1,11 @@
-import { Table, Column, Model, DataType, Default } from 'sequelize-typescript';
+import {
+  Table,
+  Column,
+  Model,
+  DataType,
+  Default,
+  AllowNull,
+} from 'sequelize-typescript';
 
 @Table({
   tableName: 'sessions',
@@ -10,7 +17,7 @@ export class Session extends Model {
     primaryKey: true,
     defaultValue: DataType.UUIDV4,
   })
-  declare id?: string;
+  declare id: string;
 
   @Column({
     type: DataType.UUID,
@@ -21,18 +28,17 @@ export class Session extends Model {
   @Column({
     allowNull: false,
   })
-  declare deviceFingerprint: string;
-
-  @Column({
-    allowNull: false,
-  })
-  declare userAgent: string;
-
-  @Default(true)
-  @Column
-  declare isActive: boolean;
+  declare deviceId: string;
 
   @Default(DataType.NOW)
   @Column
   declare lastActiveAt: Date;
+
+  @AllowNull(true)
+  @Column(DataType.DATE)
+  declare revokedAt: Date | null;
+
+  @AllowNull(false)
+  @Column(DataType.DATE)
+  declare expiresAt: Date;
 }

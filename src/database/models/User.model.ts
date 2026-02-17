@@ -6,7 +6,7 @@ export enum UserRole {
 }
 
 @Table({
-  tableName: 'users',
+  tableName: 'user',
   timestamps: true,
 })
 export class User extends Model {

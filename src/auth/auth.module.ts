@@ -1,7 +1,7 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { UserAgentMiddleware } from '../common/middleware/user-agent.middleware'; // آدرس فایل middleware
+import { UserAgentMiddleware } from '../common/middleware/user-agent.middleware';
 
 @Module({
   controllers: [AuthController],

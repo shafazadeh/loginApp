@@ -1,7 +1,7 @@
 import JWT from 'jsonwebtoken';
 import config from 'config';
+import { UserRole } from 'src/database/models/User.model';
 
-// دریافت تنظیمات از فایل کانفیگ
 const jwtOptions: any = config.get('jwt');
 const projectName: any = config.get('server.name');
 
@@ -50,7 +50,7 @@ export function generateToken(
     });
     return {
       token,
-      ttl: opts.expiresInSeconds * 1000, // تبدیل به میلی‌ثانیه
+      ttl: opts.expiresInSeconds * 1000,
     };
   } catch (err: any) {
     throw new Error(`Failed to generate JWT: ${err?.message ?? err}`);
@@ -68,7 +68,6 @@ export function decodeToken(token: string) {
 export function verifyToken(token: string, type: JwtTypeEnum) {
   try {
     const secret = jwtOptions[type].secret;
-    // اصلاح شده: ترتیب آرگومان‌ها (توکن، سکرت)
     const verified = JWT.verify(token, secret, { complete: true });
     return verified?.payload ?? null;
   } catch (e) {
@@ -118,7 +117,7 @@ export class AccessToken {
 
     return {
       name: getTokenName(`auth`, this.userType),
-      ttl: generated.ttl, // TTL بر اساس میلی‌ثانیه
+      ttl: generated.ttl,
       token: generated.token,
       payload: AccessToken.payloadWrapper(payload),
     };
@@ -163,11 +162,11 @@ export class AccessToken {
       const verified: any = verifyToken(token, JwtTypeEnum.ACCESS);
       return verified ? AccessToken.payloadWrapper(verified) : null;
     } catch (e) {
-      return null;
+      return e;
     }
   }
 
-  static revoke(userType: 'ADMIN' | 'USER') {
+  static revoke(userType: UserRole) {
     return {
       name: getTokenName(`auth`, userType),
       ttl: 0,

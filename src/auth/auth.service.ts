@@ -1,10 +1,21 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { PostgresService } from 'src/database/postgres.service';
 import { SrvError } from 'src/response/dto';
 import { UtilsService } from 'src/utils/utils.service';
-import { Request } from 'express';
 import { RegisterDto } from './dto/register.dto';
+import { Op } from 'sequelize';
+import { UserRole } from 'src/database/models/User.model';
+
+const MAX_ACTIVE_SESSIONS = 3;
+const SESSION_TTL_DAYS = 30;
+
+function addDays(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d;
+}
 
 @Injectable()
 export class AuthService {
@@ -13,9 +24,7 @@ export class AuthService {
     private readonly utils: UtilsService,
   ) {}
 
-  async register(dto: RegisterDto, req: Request) {
-    const userAgent = (req as any).clientUserAgent;
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+  async register(dto: RegisterDto) {
     const exists = await this.pg.models.User.findOne({
       where: { email: dto.email },
     });
@@ -32,28 +41,27 @@ export class AuthService {
     const hashedPassword = await this.utils.PasswordHandler.hashPassword(
       dto.password,
     );
+
     const user = await this.pg.models.User.create({
       email: dto.email,
       password: hashedPassword,
       role: 'USER',
     });
-    const deviceFingerprint = this.utils.Fingerprint.buildDeviceFingerprint({
-      userAgent,
-      ip,
-    });
+
     const sessionRecord = await this.pg.models.Session.create({
       userId: user.id,
-      deviceFingerprint,
-      userAgent,
+      deviceId: dto.deviceId,
       lastActiveAt: new Date(),
-      isActive: true,
+      revokedAt: null,
+      expiresAt: addDays(SESSION_TTL_DAYS),
     });
-    const userType = 'USER';
+
     const tokenObj = new this.utils.JwtHandler.AccessToken(
       String(user.id),
-      userType,
+      user.role,
     );
     const tokenData = tokenObj.generate(String(sessionRecord.id));
+
     if (!tokenData) {
       throw new SrvError(
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -72,7 +80,7 @@ export class AuthService {
     };
   }
 
-  async login(dto: LoginDto, req: Request) {
+  async login(dto: LoginDto) {
     const user = await this.pg.models.User.findOne({
       where: { email: dto.email },
     });
@@ -87,24 +95,30 @@ export class AuthService {
       throw new SrvError(HttpStatus.BAD_REQUEST, 'Invalid credentials');
     }
 
-    const userAgent = (req as any).clientUserAgent || req.headers['user-agent'];
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const isUser = user.role === UserRole.USER;
+    const isAdmin = user.role === UserRole.ADMIN;
 
-    const deviceFingerprint = this.utils.Fingerprint.buildDeviceFingerprint({
-      userAgent,
-      ip,
-    });
+    if (isUser && !dto.deviceId) {
+      throw new SrvError(HttpStatus.BAD_REQUEST, 'deviceId is required');
+    }
 
-    const activeSessions = await this.pg.models.Session.findAll({
+    const deviceIdToUse = dto.deviceId ?? (isAdmin ? 'admin-web' : undefined);
+    if (!deviceIdToUse) {
+      throw new SrvError(HttpStatus.BAD_REQUEST, 'deviceId is required');
+    }
+
+    const activeWhere = {
+      userId: user.id,
+      revokedAt: null,
+      expiresAt: { [Op.gt]: new Date() },
+    };
+
+    const existingSession = await this.pg.models.Session.findOne({
       where: {
-        userId: user.id,
-        isActive: true,
+        ...activeWhere,
+        deviceId: deviceIdToUse,
       },
     });
-
-    const existingSession = activeSessions.find(
-      (s) => s.deviceFingerprint === deviceFingerprint,
-    );
 
     let sessionRecord: any;
     let message = 'Login successful';
@@ -112,31 +126,36 @@ export class AuthService {
     if (existingSession) {
       await existingSession.update({
         lastActiveAt: new Date(),
-        userAgent,
+        expiresAt: addDays(SESSION_TTL_DAYS),
       });
       sessionRecord = existingSession;
       message = 'شما قبلاً وارد شده‌اید و سشن شما تمدید شد.';
     } else {
-      if (activeSessions.length >= 3) {
-        throw new SrvError(
-          HttpStatus.FORBIDDEN,
-          'شما قبلاً از ۳ دستگاه مختلف وارد شده‌اید. امکان لاگین از دستگاه جدید وجود ندارد.',
-        );
+      if (isUser) {
+        const activeCount = await this.pg.models.Session.count({
+          where: activeWhere,
+        });
+
+        if (activeCount >= MAX_ACTIVE_SESSIONS) {
+          throw new SrvError(
+            HttpStatus.FORBIDDEN,
+            'شما قبلاً از ۳ دستگاه مختلف وارد شده‌اید. امکان لاگین از دستگاه جدید وجود ندارد.',
+          );
+        }
       }
+
       sessionRecord = await this.pg.models.Session.create({
         userId: user.id,
-        deviceFingerprint,
-        userAgent,
+        deviceId: deviceIdToUse,
         lastActiveAt: new Date(),
-        isActive: true,
+        revokedAt: null,
+        expiresAt: addDays(SESSION_TTL_DAYS),
       });
     }
 
-    const userType = user.role;
-
     const tokenObj = new this.utils.JwtHandler.AccessToken(
       String(user.id),
-      userType,
+      user.role,
     );
     const tokenData = tokenObj.generate(String(sessionRecord.id));
 
@@ -148,7 +167,7 @@ export class AuthService {
     }
 
     return {
-      message: message,
+      message,
       accessToken: tokenData.token,
       expiresIn: tokenData.ttl,
       user: {

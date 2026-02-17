@@ -3,9 +3,11 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from 'src/common/decorators/roles.decorator';
+import { AccessPayloadType } from 'src/utils/handlers/jwt.handler';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -17,17 +19,20 @@ export class RolesGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    if (!requiredRoles) {
+    if (!requiredRoles || requiredRoles.length === 0) {
       return true;
     }
 
-    const { user } = context.switchToHttp().getRequest();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const request = context.switchToHttp().getRequest();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const user = request.user as AccessPayloadType | undefined;
 
     if (!user) {
-      return false;
+      throw new UnauthorizedException('ابتدا وارد شوید');
     }
 
-    const hasRole = requiredRoles.some((role) => user.userType === role);
+    const hasRole = requiredRoles.includes(user.userType);
 
     if (!hasRole) {
       throw new ForbiddenException('شما دسترسی لازم را ندارید');

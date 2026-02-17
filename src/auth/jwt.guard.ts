@@ -4,32 +4,50 @@ import {
   ExecutionContext,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import { AccessToken } from 'src/utils/handlers/jwt.handler';
+import {
+  AccessToken,
+  TokenAvailabilityTypeEnum,
+  AccessPayloadType,
+} from 'src/utils/handlers/jwt.handler';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
-
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
 
-    const authHeader = request.headers['authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const authHeader = request.headers.authorization;
+    if (!authHeader) {
       throw new UnauthorizedException('توکن ارسال نشده است');
     }
 
-    const token = authHeader.split(' ')[1];
+    const [scheme, token] = authHeader.trim().split(' ');
+    if (scheme !== 'Bearer' || !token) {
+      throw new UnauthorizedException('فرمت توکن صحیح نیست');
+    }
 
-    try {
-      const decoded = AccessToken.decode(token);
+    const verifier = new AccessToken('', 'USER');
+    const verified = verifier.verify(token);
 
-      (request as any).user = decoded;
-
-      return true;
-    } catch (e) {
+    if (!verified) {
       throw new UnauthorizedException('توکن نامعتبر است');
     }
+
+    const availability = AccessToken.checkExpiry(token);
+
+    if (availability === TokenAvailabilityTypeEnum.UNAVAILABLE) {
+      throw new UnauthorizedException('توکن نامعتبر یا منقضی شده است');
+    }
+
+    if (availability === TokenAvailabilityTypeEnum.EXPIRED) {
+      throw new UnauthorizedException('توکن access منقضی شده است');
+    }
+
+    const payload: AccessPayloadType = verified;
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    (request as any).user = payload;
+
+    return true;
   }
 }
