@@ -3,9 +3,10 @@ import { TestGuardService } from './test-guard.service';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { RolesGuard } from 'src/auth/role.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
-import { ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 
 @Controller('test-guard')
+@ApiBearerAuth('Authorization')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TestGuardController {
   constructor(private readonly testGuardService: TestGuardService) {}
